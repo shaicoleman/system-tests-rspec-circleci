@@ -1,0 +1,5 @@
+{
+  "name": "system-tests-rspec-circleci",
+  "private": true,
+  "dependencies": {}
+}

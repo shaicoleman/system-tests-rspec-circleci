@@ -1,0 +1,37 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/ruby:2.6.3-node-browsers
+
+    steps:
+      - run:
+          name: Generate cache prefix that gets busted every week
+          command: date +%G-%V > /tmp/cache-prefix
+
+      - checkout
+
+      - restore_cache:
+          name: Restore Bundle Cache
+          keys:
+            - system-tests-rspec-circleci-bundle-{{ checksum "/tmp/cache-prefix" }}-{{ checksum "Gemfile.lock" }}
+            - system-tests-rspec-circleci-bundle-{{ checksum "/tmp/cache-prefix" }}-
+
+      - run:
+          name: Upgrade bundler
+          command: gem install bundler
+
+      - run:
+          name: Bundle Install
+          command: bundle check --path=vendor/bundle || bundle install --path=vendor/bundle --jobs 4 --retry 3 --without=$(ruby -e "puts Dir['config/environments/*.rb'].map { |f| File.basename(f, '.rb') }.grep_v('test').join(' ')")
+
+      - save_cache:
+          name: Save Bundle Cache
+          paths:
+            - vendor/bundle
+          key: system-tests-rspec-circleci-bundle-{{ checksum "/tmp/cache-prefix" }}-{{ checksum "Gemfile.lock" }}
+
+      - run:
+          name: Parallel RSpec
+          command: bundle exec rspec --color --format documentation spec
+          timeout: 15
